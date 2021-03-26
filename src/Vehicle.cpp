@@ -25,18 +25,18 @@ void Vehicle::setCurrentDestination(std::shared_ptr<Intersection> destination)
 void Vehicle::simulate()
 {
     // launch drive function in a thread
-    threads.emplace_back(std::thread(&Vehicle::drive, this));
+    threads.emplace_back(&Vehicle::drive, get_shared_this());
 }
 
 // virtual function which is executed in a thread
-void Vehicle::drive()
+[[noreturn]] void Vehicle::drive()
 {
     // print id of the current thread
     std::unique_lock<std::mutex> lck(_mtx);
     std::cout << "Vehicle #" << _id << "::drive: thread id = " << std::this_thread::get_id() << std::endl;
     lck.unlock();
 
-    // initalize variables
+    // initialize variables
     bool hasEnteredIntersection = false;
     double cycleDuration = 1; // duration of a single simulation cycle in ms
     std::chrono::time_point<std::chrono::system_clock> lastUpdate;
@@ -49,7 +49,7 @@ void Vehicle::drive()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         // compute time difference to stop watch
-        long timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastUpdate).count();
+        auto timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastUpdate).count();
         if (timeSinceLastUpdate >= cycleDuration)
         {
             // update position with a constant velocity motion model
@@ -73,7 +73,7 @@ void Vehicle::drive()
             yv = y1 + completion * dy;
             this->setPosition(xv, yv);
 
-            // check wether halting position in front of destination has been reached
+            // check whether halting position in front of destination has been reached
             if (completion >= 0.9 && !hasEnteredIntersection)
             {
                 // request entry to the current intersection (using async)
@@ -87,7 +87,7 @@ void Vehicle::drive()
                 hasEnteredIntersection = true;
             }
 
-            // check wether intersection has been crossed
+            // check whether intersection has been crossed
             if (completion >= 1.0 && hasEnteredIntersection)
             {
                 // choose next street and destination
